@@ -1,0 +1,338 @@
+# Semaphore — Installation & Usage Guide
+
+> Ansible automation UI running on Docker with PostgreSQL, connected to Proxmox for VM provisioning.
+
+---
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [First Login](#first-login)
+- [Proxmox API Token](#proxmox-api-token)
+- [Install Proxmox Python Dependencies](#install-proxmox-python-dependencies)
+- [GitLab Repository Access](#gitlab-repository-access)
+- [Project Setup](#project-setup)
+  - [1. Repository](#1-repository)
+  - [2. Inventory](#2-inventory)
+  - [3. Variable Group](#3-variable-group)
+  - [4. Task Template](#4-task-template)
+- [Running the Playbook](#running-the-playbook)
+
+---
+
+## Prerequisites
+
+- Docker and Docker Compose installed
+- A Proxmox host accessible on your network
+- Your playbooks stored in a GitLab repository
+
+---
+
+## Installation
+
+### 1. Create the project directory
+
+```bash
+mkdir -p ~/semaphore
+cd ~/semaphore
+```
+
+### 2. Create `docker-compose.yml`
+
+```yaml
+services:
+  semaphore-db:
+    image: postgres:14-alpine
+    container_name: semaphore-db
+    restart: unless-stopped
+    volumes:
+      - semaphore-postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=semaphore
+      - POSTGRES_PASSWORD=semaphore_pass
+      - POSTGRES_DB=semaphore
+
+  semaphore:
+    image: semaphoreui/semaphore:latest
+    container_name: semaphore
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    environment:
+      - SEMAPHORE_DB_USER=semaphore
+      - SEMAPHORE_DB_PASS=semaphore_pass
+      - SEMAPHORE_DB_HOST=semaphore-db
+      - SEMAPHORE_DB_PORT=5432
+      - SEMAPHORE_DB_DIALECT=postgres
+      - SEMAPHORE_DB=semaphore
+      - SEMAPHORE_ADMIN_PASSWORD=admin
+      - SEMAPHORE_ADMIN_NAME=Admin
+      - SEMAPHORE_ADMIN_EMAIL=admin@example.com
+      - SEMAPHORE_ADMIN=admin
+      - ANSIBLE_HOST_KEY_CHECKING=False
+    depends_on:
+      - semaphore-db
+    volumes:
+      - semaphore-config:/etc/semaphore
+
+volumes:
+  semaphore-postgres-data:
+  semaphore-config:
+```
+
+### 3. Start Semaphore
+
+```bash
+docker compose up -d
+```
+
+Semaphore will be available at:
+
+```
+http://<your-server-ip>:3001
+```
+
+---
+
+## First Login
+
+| Field    | Value   |
+|----------|---------|
+| Username | `admin` |
+| Password | `admin` |
+
+> ⚠️ Change the admin password after first login via **Team → Edit User**.
+
+---
+
+## Proxmox API Token
+
+Semaphore communicates with Proxmox through an API token. Here is how to create one with the right permissions.
+
+### 1. Create the token
+
+In the Proxmox web UI go to **Datacenter → Permissions → API Tokens → Add**.
+
+| Field | Value |
+|-------|-------|
+| User | `root@pam` |
+| Token ID | `ansible` |
+| Privilege Separation | **Unchecked** |
+
+> Unchecking **Privilege Separation** means the token inherits root permissions. This is required for VM cloning, cloud-init configuration, and starting VMs.
+
+Click **Add** and copy the token secret — it is only shown once.
+
+Your token will look like this:
+
+```
+Token ID:     root@pam!ansible
+Token Secret: d12ac917-dc0f-4ccb-ae8b-76f43476bbd4
+```
+
+### 2. Verify permissions
+
+Since `root@pam` with privilege separation disabled inherits full permissions, no additional role assignment is needed. If you use a non-root user you would need to assign at minimum the `PVEAdmin` role at the Datacenter level.
+
+---
+
+## Install Proxmox Python Dependencies
+
+The provisioning playbook uses `community.general.proxmox_kvm` which requires `proxmoxer` and `requests` to be installed in Semaphore's Ansible virtual environment.
+
+### 1. Exec into the container
+
+```bash
+docker exec -it semaphore /bin/bash
+```
+
+### 2. Install the dependencies
+
+```bash
+/opt/semaphore/apps/ansible/11.1.0/venv/bin/pip install proxmoxer requests
+```
+
+### 3. Verify
+
+```bash
+/opt/semaphore/apps/ansible/11.1.0/venv/bin/pip list | grep -E "proxmoxer|requests"
+```
+
+Expected output:
+
+```
+proxmoxer          2.3.0
+requests           2.32.5
+```
+
+### 4. Exit the container
+
+```bash
+exit
+```
+
+> This installation persists as long as the container is not recreated. If you run `docker compose down && docker compose up` you will need to repeat this step.
+
+---
+
+## GitLab Repository Access
+
+The playbooks repository is hosted on a private GitLab instance (`git.asteroidea.co`) and accessed over SSH. This section covers generating an SSH key pair, registering it with GitLab, and configuring Semaphore to use it.
+
+### 1. Generate an SSH Key Pair
+
+Run this on any machine with `ssh-keygen` available (your local workstation is fine):
+
+**Linux:**
+```bash
+ssh-keygen -t ed25519 -C "semaphore" -f ~/semaphore_gitlab -N ""
+```
+
+**Windows (PowerShell):**
+```powershell
+ssh-keygen -t ed25519 -C "semaphore" -f C:\Users\<you>\semaphore_gitlab
+```
+When prompted for a passphrase, press **Enter** twice to leave it empty.
+
+This produces two files:
+
+| File | Purpose |
+|------|---------|
+| `semaphore_gitlab` | Private key — goes into Semaphore |
+| `semaphore_gitlab.pub` | Public key — goes into GitLab |
+
+### 2. Add the Public Key to GitLab
+
+Go to your GitLab group `it_automation` → **Settings → Repository → Deploy keys**:
+
+| Field | Value |
+|-------|-------|
+| Title | `semaphore` (or any label) |
+| Key | Contents of `semaphore_gitlab.pub` |
+| Grant write permissions | Off (read-only is sufficient) |
+
+> If you do not have group maintainer access, add the key under your personal **User Settings → SSH Keys** instead.
+
+### 3. Add the Private Key to Semaphore
+
+In Semaphore go to **Key Store → New Key**:
+
+| Field | Value |
+|-------|-------|
+| Name | `gitlab-deploy` |
+| Type | `SSH Key` |
+| Private Key | Contents of `semaphore_gitlab` (no extension) |
+
+
+## Project Setup
+
+In Semaphore, create a new **Project** first. Everything below lives inside it.
+
+**Navigate to:** `Projects → + New Project` → give it a name like `Proxmox Provisioning`.
+
+---
+
+### 1. Repository
+
+The Repository connects Semaphore to your GitLab repo where the playbooks live.
+
+**Navigate to:** Project → Repositories → `+ New Repository`
+
+| Field | Value |
+|-------|-------|
+| Name | `provisioning-playbooks` |
+| URL | `git@git.asteroidea.co:it_automation/playbooks.git` |
+| Branch | `main` |
+| Access Key | `gitlab-deploy` |
+
+---
+
+### 2. Inventory
+
+The Inventory defines your Proxmox host and the API credentials Ansible uses to talk to it.
+
+**Navigate to:** Project → Inventory → `+ New Inventory`
+
+| Field | Value |
+|-------|-------|
+| Name | `proxmox` |
+| Type | `YAML` |
+| SSH Key | None |
+
+**Inventory content:**
+
+```yaml
+all:
+  hosts:
+    proxmox:
+      ansible_host: 20.0.0.202
+      ansible_user: root
+      pve_api_user: root@pam
+      proxmox_token_id: "root@pam!ansible"
+      proxmox_token_secret: xxxxxx-xxxxxxx-xxxxxxx-xxxxxxxx
+```
+
+Replace `ansible_host` with your Proxmox IP and the token values with your own.
+
+---
+
+### 3. Variable Group
+
+The Variable Group holds the per-run variables passed to the playbook as extra vars. This is where you configure what VM gets created.
+
+**Navigate to:** Project → Variable Groups → `+ New Variable Group`
+
+| Field | Value |
+|-------|-------|
+| Name | `dockhand-vars` |
+
+**Variables (JSON):**
+
+```json
+{
+  "new_vm_name": "dockhand-node",
+  "vm_user": "astro",
+  "vm_password": "your-secure-password",
+  "ssh_ip": "your-admin-ip"
+}
+```
+
+| Variable | Description |
+|----------|-------------|
+| `new_vm_name` | Base name for the VM — VMID is appended automatically |
+| `vm_user` | User created on the VM via cloud-init |
+| `vm_password` | Password for that user |
+| `ssh_ip` | The only IP that will be allowed to SSH into the VM after provisioning |
+
+> `ssh_ip` is critical — once the playbook finishes, UFW locks SSH to this IP only.
+
+---
+
+### 4. Task Template
+
+The Task Template ties everything together.
+
+**Navigate to:** Project → Task Templates → `+ New Template`
+
+| Field | Value |
+|-------|-------|
+| Name | `Provision Dockhand VM` |
+| Playbook Filename | `provision_dockhand.yml` |
+| Inventory | `proxmox` |
+| Repository | `provisioning-playbooks` |
+| Variable Group | `dockhand-vars` |
+
+---
+
+## Running the Playbook
+
+1. Navigate to **Task Templates**
+2. Click **Run** on `Provision Dockhand VM`
+3. Optionally override variable group values for this specific run (e.g. different `new_vm_name` or `ssh_ip`)
+4. Click **Confirm**
+
+Semaphore streams the full Ansible output in real time under the **Tasks** tab.
+
+---
+

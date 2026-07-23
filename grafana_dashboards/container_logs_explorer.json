@@ -1,0 +1,509 @@
+{
+    "apiVersion": "dashboard.grafana.app/v2",
+    "kind": "Dashboard",
+    "metadata": {
+      "name": "container-log-explorer-4",
+      "namespace": "default",
+      "uid": "9389b537-2d2b-4a4a-9bba-e43da664e23a",
+      "resourceVersion": "1777888110744984",
+      "generation": 1,
+      "creationTimestamp": "2026-05-04T09:48:30Z",
+      "labels": {
+        "grafana.app/deprecatedInternalID": "8"
+      },
+      "annotations": {
+        "grafana.app/createdBy": "user:efkg1za7xjldsb",
+        "grafana.app/folder": "",
+        "grafana.app/saved-from-ui": "Grafana v13.0.1 (a100054f)"
+      }
+    },
+    "spec": {
+      "annotations": [
+        {
+          "kind": "AnnotationQuery",
+          "spec": {
+            "query": {
+              "kind": "DataQuery",
+              "group": "grafana",
+              "version": "v0",
+              "datasource": {
+                "name": "-- Grafana --"
+              },
+              "spec": {}
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "builtIn": true,
+            "legacyOptions": {
+              "type": "dashboard"
+            }
+          }
+        }
+      ],
+      "cursorSync": "Off",
+      "editable": true,
+      "elements": {
+        "panel-2": {
+          "kind": "Panel",
+          "spec": {
+            "id": 2,
+            "title": "Container Log Stream",
+            "description": "",
+            "links": [],
+            "data": {
+              "kind": "QueryGroup",
+              "spec": {
+                "queries": [
+                  {
+                    "kind": "PanelQuery",
+                    "spec": {
+                      "query": {
+                        "kind": "DataQuery",
+                        "group": "",
+                        "version": "v0",
+                        "datasource": {
+                          "name": "${DS_LOKI}"
+                        },
+                        "spec": {
+                          "expr": "{container_name=~\"$app\", host=~\"$host\", stack=~\"$stack\", network=~\"$network\", x_request_id=~\"$x_request_id\"} | product=~\"$product\" |= \"$search\""
+                        }
+                      },
+                      "refId": "A",
+                      "hidden": false
+                    }
+                  }
+                ],
+                "transformations": [],
+                "queryOptions": {}
+              }
+            },
+            "vizConfig": {
+              "kind": "VizConfig",
+              "group": "logs",
+              "version": "12.3.3",
+              "spec": {
+                "options": {
+                  "dedupStrategy": "none",
+                  "enableInfiniteScrolling": true,
+                  "enableLogDetails": true,
+                  "prettifyLogMessage": true,
+                  "showControls": true,
+                  "showLabels": true,
+                  "showTime": true,
+                  "sortOrder": "Descending",
+                  "wrapLogMessage": true
+                },
+                "fieldConfig": {
+                  "defaults": {},
+                  "overrides": []
+                }
+              }
+            }
+          }
+        },
+        "panel-3": {
+          "kind": "Panel",
+          "spec": {
+            "id": 3,
+            "title": "Log Volume Over Time",
+            "description": "",
+            "links": [],
+            "data": {
+              "kind": "QueryGroup",
+              "spec": {
+                "queries": [
+                  {
+                    "kind": "PanelQuery",
+                    "spec": {
+                      "query": {
+                        "kind": "DataQuery",
+                        "group": "",
+                        "version": "v0",
+                        "datasource": {
+                          "name": "${DS_LOKI}"
+                        },
+                        "spec": {
+                          "expr": "sum by (container_name) (count_over_time({container_name=~\"$app\", host=~\"$host\", stack=~\"$stack\", network=~\"$network\", x_request_id=~\"$x_request_id\"} | product=~\"$product\" |= \"$search\" [$__auto]))",
+                          "legendFormat": "{{container_name}}"
+                        }
+                      },
+                      "refId": "A",
+                      "hidden": false
+                    }
+                  }
+                ],
+                "transformations": [],
+                "queryOptions": {}
+              }
+            },
+            "vizConfig": {
+              "kind": "VizConfig",
+              "group": "timeseries",
+              "version": "12.3.3",
+              "spec": {
+                "options": {
+                  "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                  },
+                  "selectionMode": "refine",
+                  "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                  }
+                },
+                "fieldConfig": {
+                  "defaults": {
+                    "unit": "short",
+                    "thresholds": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "value": 0,
+                          "color": "green"
+                        },
+                        {
+                          "value": 80,
+                          "color": "red"
+                        }
+                      ]
+                    },
+                    "color": {
+                      "mode": "palette-classic"
+                    },
+                    "custom": {
+                      "axisBorderShow": false,
+                      "axisCenteredZero": false,
+                      "axisColorMode": "text",
+                      "axisLabel": "",
+                      "axisPlacement": "auto",
+                      "barAlignment": 0,
+                      "barWidthFactor": 0.6,
+                      "drawStyle": "bars",
+                      "fillOpacity": 80,
+                      "gradientMode": "none",
+                      "hideFrom": {
+                        "legend": false,
+                        "tooltip": false,
+                        "viz": false
+                      },
+                      "insertNulls": false,
+                      "lineInterpolation": "linear",
+                      "lineWidth": 1,
+                      "pointSize": 5,
+                      "scaleDistribution": {
+                        "type": "linear"
+                      },
+                      "showPoints": "never",
+                      "showValues": false,
+                      "spanNulls": false,
+                      "stacking": {
+                        "group": "A",
+                        "mode": "normal"
+                      },
+                      "thresholdsStyle": {
+                        "mode": "off"
+                      }
+                    }
+                  },
+                  "overrides": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "layout": {
+        "kind": "GridLayout",
+        "spec": {
+          "items": [
+            {
+              "kind": "GridLayoutItem",
+              "spec": {
+                "x": 0,
+                "y": 0,
+                "width": 24,
+                "height": 8,
+                "element": {
+                  "kind": "ElementReference",
+                  "name": "panel-3"
+                }
+              }
+            },
+            {
+              "kind": "GridLayoutItem",
+              "spec": {
+                "x": 0,
+                "y": 8,
+                "width": 24,
+                "height": 22,
+                "element": {
+                  "kind": "ElementReference",
+                  "name": "panel-2"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "links": [],
+      "liveNow": false,
+      "preload": false,
+      "tags": [],
+      "timeSettings": {
+        "from": "now-1h",
+        "to": "now",
+        "autoRefresh": "1d",
+        "autoRefreshIntervals": [
+          "5s",
+          "10s",
+          "30s",
+          "1m",
+          "5m",
+          "15m",
+          "30m",
+          "1h",
+          "2h",
+          "1d"
+        ],
+        "hideTimepicker": false,
+        "fiscalYearStartMonth": 0
+      },
+      "title": "Container Log Explorer v4",
+      "variables": [
+        {
+          "kind": "DatasourceVariable",
+          "spec": {
+            "name": "DS_LOKI",
+            "pluginId": "loki",
+            "refresh": "onDashboardLoad",
+            "regex": "",
+            "current": {
+              "text": "loki",
+              "value": "ffe45k08rr8qof"
+            },
+            "options": [],
+            "multi": false,
+            "includeAll": false,
+            "label": "Data Source",
+            "hide": "dontHide",
+            "skipUrlSync": false,
+            "allowCustomValue": true
+          }
+        },
+        {
+          "kind": "QueryVariable",
+          "spec": {
+            "name": "host",
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            },
+            "label": "Host",
+            "hide": "dontHide",
+            "refresh": "onDashboardLoad",
+            "skipUrlSync": false,
+            "query": {
+              "kind": "DataQuery",
+              "group": "",
+              "version": "v0",
+              "datasource": {
+                "name": "${DS_LOKI}"
+              },
+              "spec": {
+                "__legacyStringValue": "label_values(host)"
+              }
+            },
+            "regex": "",
+            "sort": "disabled",
+            "definition": "label_values(host)",
+            "options": [],
+            "multi": false,
+            "includeAll": true,
+            "allowCustomValue": true
+          }
+        },
+        {
+          "kind": "QueryVariable",
+          "spec": {
+            "name": "stack",
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            },
+            "label": "Stack",
+            "hide": "dontHide",
+            "refresh": "onDashboardLoad",
+            "skipUrlSync": false,
+            "query": {
+              "kind": "DataQuery",
+              "group": "",
+              "version": "v0",
+              "datasource": {
+                "name": "${DS_LOKI}"
+              },
+              "spec": {
+                "__legacyStringValue": "label_values(stack)"
+              }
+            },
+            "regex": "",
+            "sort": "disabled",
+            "definition": "label_values(stack)",
+            "options": [],
+            "multi": false,
+            "includeAll": true,
+            "allowCustomValue": true
+          }
+        },
+        {
+          "kind": "QueryVariable",
+          "spec": {
+            "name": "product",
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            },
+            "label": "Product",
+            "hide": "dontHide",
+            "refresh": "onDashboardLoad",
+            "skipUrlSync": false,
+            "query": {
+              "kind": "DataQuery",
+              "group": "",
+              "version": "v0",
+              "datasource": {
+                "name": "${DS_LOKI}"
+              },
+              "spec": {
+                "__legacyStringValue": "label_values(product)"
+              }
+            },
+            "regex": "",
+            "sort": "disabled",
+            "definition": "label_values(product)",
+            "options": [],
+            "multi": false,
+            "includeAll": true,
+            "allValue": ".*",
+            "allowCustomValue": true
+          }
+        },
+        {
+          "kind": "QueryVariable",
+          "spec": {
+            "name": "network",
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            },
+            "label": "Network",
+            "hide": "dontHide",
+            "refresh": "onDashboardLoad",
+            "skipUrlSync": false,
+            "query": {
+              "kind": "DataQuery",
+              "group": "",
+              "version": "v0",
+              "datasource": {
+                "name": "${DS_LOKI}"
+              },
+              "spec": {
+                "__legacyStringValue": "label_values(network)"
+              }
+            },
+            "regex": "",
+            "sort": "disabled",
+            "definition": "label_values(network)",
+            "options": [],
+            "multi": false,
+            "includeAll": true,
+            "allowCustomValue": true
+          }
+        },
+        {
+          "kind": "QueryVariable",
+          "spec": {
+            "name": "app",
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            },
+            "label": "Container",
+            "hide": "dontHide",
+            "refresh": "onDashboardLoad",
+            "skipUrlSync": false,
+            "query": {
+              "kind": "DataQuery",
+              "group": "",
+              "version": "v0",
+              "datasource": {
+                "name": "${DS_LOKI}"
+              },
+              "spec": {
+                "__legacyStringValue": "label_values(container_name)"
+              }
+            },
+            "regex": "",
+            "sort": "disabled",
+            "definition": "label_values(container_name)",
+            "options": [],
+            "multi": false,
+            "includeAll": true,
+            "allowCustomValue": true
+          }
+        },
+        {
+          "kind": "QueryVariable",
+          "spec": {
+            "name": "x_request_id",
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            },
+            "label": "Request ID",
+            "hide": "dontHide",
+            "refresh": "onTimeRangeChanged",
+            "skipUrlSync": false,
+            "query": {
+              "kind": "DataQuery",
+              "group": "",
+              "version": "v0",
+              "datasource": {
+                "name": "${DS_LOKI}"
+              },
+              "spec": {
+                "__legacyStringValue": "label_values(x_request_id)"
+              }
+            },
+            "regex": "",
+            "sort": "disabled",
+            "definition": "label_values(x_request_id)",
+            "options": [],
+            "multi": false,
+            "includeAll": true,
+            "allValue": ".*",
+            "allowCustomValue": true
+          }
+        },
+        {
+          "kind": "TextVariable",
+          "spec": {
+            "name": "search",
+            "current": {
+              "text": "",
+              "value": ""
+            },
+            "query": "",
+            "label": "Search",
+            "hide": "dontHide",
+            "skipUrlSync": false
+          }
+        }
+      ]
+    }
+  }
